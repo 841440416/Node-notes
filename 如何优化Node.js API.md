@@ -26,3 +26,14 @@ fs.readFile('/etc/passwd', function(err, file) {
 - 使用 Node 包 fs 来处理文件
 - readFileSync() 是同步函数，会在执行完成前阻塞线程
 - readFile() 是异步函数，会立刻返回并在后台运行
+
+### 2. 避免在 API 中使用 session 和 cookie，仅在 API 响应中发送数据
+当我们使用 cookie 或者 session 来存储临时状态的时候，会占用非常多的服务器内存。
+
+现在通用无状态 API，并且也有 JWT、OAuth 等验证机制。验证令牌保存在客户端以便服务器管理状态。
+
+JWT 是基于 JSON 的用于 API 验证的安全令牌。JWT 可以被看到，但一旦发送就无法修改。JWT 只是一个序列并没有加密。OAuth 不是 API 或服务——相反，它是授权的开放标准。OAuth 是一组用于获取令牌的标准步骤。
+
+同时，也不要把时间浪费在使用 Node.js 来服务静态文件。这方面 NGINX 和 Apache 做得更好。
+
+使用 Node 搭建 API 的时候，不要在响应中发送完整的 HTML 页面。当仅有数据通过 API 发送的时候，Node 服务得会更好。大部分 Node 应用都使用 JSON 数据。
