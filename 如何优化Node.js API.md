@@ -78,3 +78,48 @@ pm2 start  app.js -i 0
 第一字节时间是一种测量方式，用作表示 Web 服务器或者其他网络资源的响应时间。TTFB 测量从用户或客户发出 HTTP 请求到客户的浏览器收到页面的第一个字节的时间。
 所有用户访问浏览器的同一页面加载速度不可能在 100 毫秒之内，这仅仅是因为服务器和用户之间的物理距离。
 我们可以通过使用 CDN 和全球本地数据中心缓存内容来减少第一个字节的时间。这有助于用户以最小的延迟访问内容。你可以从 Cloudflare 提供的 CDN 解决方案开始着手。
+
+## 6. 使用带日志的错误脚本
+
+监视 API 是否正常工作最好的办法是记录行为，于是记录日志就派上用场。
+一个常见的办法是将记录打印在控制台上（使用`console.log()`）。
+比`console.log()`更高效的方法是使用 `Morgan`、`Buyan` 和 `Winston`。我将在这里以 Winston 为例。
+### 如何使用 Winston 记录 – 功能
+
+- 支持 4 个可以自由选择的日志等级，如：info、error、verbose、debug、silly 和 warn
+- 支持查询日志
+- 简单的分析
+- 可以使用相同的类型进行多个 transports 输出
+- 捕获并记录 uncaughtException
+  
+可以使用以下命令行设置 Winston：
+```sh
+npm install winston --save
+```
+这里是使用 Winston 记录的基本配置：
+```js
+const winston = require('winston');
+
+let logger = new winston.Logger({
+  transports: [
+    new winston.transports.File({
+      level: 'verbose',
+      timestamp: new Date(),
+      filename: 'filelog-verbose.log',
+      json: false,
+    }),
+    new winston.transports.File({
+      level: 'error',
+      timestamp: new Date(),
+      filename: 'filelog-error.log',
+      json: false,
+    })
+  ]
+});
+
+logger.stream = {
+  write: function(message, encoding) {
+    logger.info(message);
+  }
+};
+```
