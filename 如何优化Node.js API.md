@@ -123,3 +123,141 @@ logger.stream = {
   }
 };
 ```
+
+## 7. 使用 HTTP/2 而不是 HTTP
+
+除了上述使用的这些技巧，我们还可以使用 HTTP/2 而不是 HTTP，因为它具备以下优势：
+- 多路复用
+- 头部压缩
+- 服务器推送
+- 二进制格式
+
+它专注提高性能，并解决 HTTP 的问题。它使网页浏览更快、更容易，并且消耗更少的带宽。
+
+## 8. 并行任务
+
+使用 async.js 来运行任务。并行任务对 API 的性能有很大改善，它减少了延迟并最大限度地减少了阻塞操作。
+
+并行意味着同时运行多个任务。当你并行任务的时候，不需要控制程序的执行顺序。
+以下是一个数组异步并行的简单例子：
+```js
+const async = require("async");
+// 使用对象而不是数组
+async.parallel({
+  task1: function(callback) {
+    setTimeout(function() {
+      console.log('Task One');
+      callback(null, 1);
+    }, 200);
+  },
+  task2: function(callback) {
+    setTimeout(function() {
+      console.log('Task Two');
+      callback(null, 2);
+    }, 100);
+    }
+}, function(err, results) {
+  console.log(results);
+  // 结果相当于: {task2: 2, task1: 1}
+});
+```
+在以上例子中，我们使用了 async.js 以异步的形式执行了两个任务。task 1 需要 200 毫秒完成，但是 task 2 不需要等待 task 1 完成后再执行 – 它在设定的 100 毫秒后执行。
+并行任务对 API 的性能有很大的影响。它减少了延迟并最大限度地减少了阻塞操作。
+
+## 9. 使用 Redis 缓存应用
+
+Redis 是 Memcached 的高级版本。它通过在服务器的主内存中存储和检索数据来优化 API 响应时间。它提高了数据库查询的性能，也减少了访问延迟。
+
+在下面的代码片段中，我们分别调用了不使用 Redis 和使用 Redis 的 API，并比较了响应时间。
+
+响应时间差异巨大~ 899.37 毫秒：
+|方法	|响应时间 |
+|-----|-------|
+|不使用 Redis	|900ms
+|使用 Redis|	0.621ms
+
+以下是不使用 Redis 的 Node：
+```js
+'use strict';
+
+//定义需要的所有依赖项
+const express = require('express');
+const responseTime = require('response-time')
+const axios = require('axios');
+
+//加载 Express 框架
+var app = express();
+
+//创建在响应头中添加 X-Response-Time 的中间件
+app.use(responseTime());
+
+const getBook = (req, res) => {
+  let isbn = req.query.isbn;
+  let url = `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`;
+  axios.get(url)
+    .then(response => {
+      let book = response.data.items
+      res.send(book);
+    })
+    .catch(err => {
+      res.send('The book you are looking for is not found !!!');
+    });
+};
+
+app.get('/book', getBook);
+
+app.listen(3000, function() {
+  console.log('Your node is running on port 3000 !!!')
+});
+```
+以下是使用 Redis 的 Node：
+```js
+'use strict';
+
+//定义需要的所有依赖项
+const express = require('express');
+const responseTime = require('response-time')
+const axios = require('axios');
+const redis = require('redis');
+const client = redis.createClient();
+
+//加载 Express 框架
+var app = express();
+
+//创建在响应头中添加 X-Response-Time 的中间件
+app.use(responseTime());
+
+const getBook = (req, res) => {
+  let isbn = req.query.isbn;
+  let url = `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`;
+  return axios.get(url)
+    .then(response => {
+      let book = response.data.items;
+      //设置string-key:缓存中的 isbn。以及缓存的内容: title
+      // 设置缓存的过期时间为 1 个小时（60分钟）
+      client.setex(isbn, 3600, JSON.stringify(book));
+
+      res.send(book);
+    })
+    .catch(err => {
+      res.send('The book you are looking for is not found !!!');
+    });
+};
+
+const getCache = (req, res) => {
+  let isbn = req.query.isbn;
+  //对照服务器的 redis 检查缓存数据
+  client.get(isbn, (err, result) => {
+    if (result) {
+      res.send(result);
+    } else {
+      getBook(req, res);
+    }
+  });
+}
+app.get('/book', getCache);
+
+app.listen(3000, function() {
+  console.log('Your node is running on port 3000 !!!')
+)};
+```
